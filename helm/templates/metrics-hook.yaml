@@ -70,7 +70,7 @@ kind: Role
 metadata:
   name: {{ .Values.argoContext.postHookJob.name }}-role
 rules:
-  - apiGroups: ["networking.k8s.io"]
+  - apiGroups: [""]
     resources: ["services"]
     verbs: ["get", "patch"]
 ---
