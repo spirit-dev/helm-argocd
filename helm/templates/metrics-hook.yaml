@@ -1,0 +1,89 @@
+{{- if .Values.argoContext.postHookJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.argoContext.postHookJob.name }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      labels:
+        {{- include "argoContext.labels" (dict "context" $) | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry-key
+      containers:
+      - name: {{ .Values.argoContext.postHookJob.name }}
+        command:
+          - /bin/sh
+          - -c
+          - |
+            echo "Strating fix job"
+            for svc in $(kubectl get services -n argo-cd -l {{ .Values.argoContext.postHookJob.command.filterLabel }} -o name);
+            do
+              kubectl patch $svc -n argo-cd -p '{"spec": {"selector": {"app.kubernetes.io/instance": "{{ .Release.Namespace }}"}}}'
+              echo "fixed $svc"
+            done
+        image: "{{ .Values.argoContext.postHookJob.image.repository }}:{{ .Values.argoContext.postHookJob.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.argoContext.postHookJob.image.pullPolicy }}
+        {{- with .Values.argoContext.postHookJob.containerSecurityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.argoContext.postHookJob.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.argoContext.postHookJob.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      restartPolicy: OnFailure
+      {{- with .Values.argoContext.postHookJob.affinity }}
+      affinity:
+        {{- trim . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.argoContext.postHookJob.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.argoContext.postHookJob.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.argoContext.postHookJob.name }}-sa
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.argoContext.postHookJob.name }}-sa
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .Values.argoContext.postHookJob.name }}-role
+rules:
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .Values.argoContext.postHookJob.name }}-rb
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.argoContext.postHookJob.name }}-sa
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ .Values.argoContext.postHookJob.name }}-role
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
