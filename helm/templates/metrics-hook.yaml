@@ -28,7 +28,6 @@ spec:
             for svc in $(kubectl get services -n argo-cd -l {{ .Values.argoContext.postHookJob.command.filterLabel }} -o name);
             do
               kubectl patch $svc -n argo-cd -p '{"spec": {"selector": {"app.kubernetes.io/instance": "{{ .Release.Namespace }}"}}}'
-              echo "fixed $svc"
             done
         image: "{{ .Values.argoContext.postHookJob.image.repository }}:{{ .Values.argoContext.postHookJob.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.argoContext.postHookJob.image.pullPolicy }}
