@@ -1,9 +1,17 @@
-{{- if .Values.argoContext.postHookJob.enabled }}
+{{- if .Values.argoContext.hooks.enabled }}
+
+{{- $repository := .Values.argoContext.hooks.image.repository }}
+{{- $tag := .Values.argoContext.hooks.image.tag | default .Chart.AppVersion }}
+{{- $pullPolicy := .Values.argoContext.hooks.image.pullPolicy }}
+{{- $jobName := .Values.argoContext.hooks.name }}
+
+{{- range $job, $config := .Values.argoContext.hooks.jobs }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Values.argoContext.postHookJob.name }}
-  namespace: {{ .Release.Namespace }}
+  name: {{ $jobName }}-{{ $config.name }}
+  namespace: {{ $.Release.Namespace }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-delete-policy": before-hook-creation
@@ -19,55 +27,57 @@ spec:
       imagePullSecrets:
         - name: gitlab-registry-key
       containers:
-      - name: {{ .Values.argoContext.postHookJob.name }}
+      - name: {{ $jobName }}
         command:
           - /bin/sh
           - -c
           - |
             echo "Strating fix job"
-            for svc in $(kubectl get services -n argo-cd -l {{ .Values.argoContext.postHookJob.command.filterLabel }} -o name);
+            for svc in $(kubectl get services -n argo-cd -l {{ $config.filterLabel }} -o name);
             do
-              kubectl patch $svc -n argo-cd -p '{"spec": {"selector": {"app.kubernetes.io/instance": "{{ .Release.Namespace }}"}}}'
+              kubectl patch $svc -n argo-cd -p '{"spec": {"selector": {"{{ $config.fix.label }}": "{{ $config.fix.value }}"}}}'
             done
-        image: "{{ .Values.argoContext.postHookJob.image.repository }}:{{ .Values.argoContext.postHookJob.image.tag | default .Chart.AppVersion }}"
-        imagePullPolicy: {{ .Values.argoContext.postHookJob.image.pullPolicy }}
-        {{- with .Values.argoContext.postHookJob.containerSecurityContext }}
+        image: "{{ $repository }}:{{ $tag }}"
+        imagePullPolicy: {{ $pullPolicy }}
+        {{- with $config.containerSecurityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-      {{- with .Values.argoContext.postHookJob.securityContext }}
+      {{- with $config.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.argoContext.postHookJob.priorityClassName }}
+      {{- with $config.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
       restartPolicy: OnFailure
-      {{- with .Values.argoContext.postHookJob.affinity }}
+      {{- with $config.affinity }}
       affinity:
         {{- trim . | nindent 8 }}
       {{- end }}
-      {{- with .Values.argoContext.postHookJob.nodeSelector }}
+      {{- with $config.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.argoContext.postHookJob.tolerations }}
+      {{- with $config.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ .Values.argoContext.postHookJob.name }}-sa
+      serviceAccountName: {{ $jobName }}-sa
+{{- end }}
+
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .Values.argoContext.postHookJob.name }}-sa
+  name: {{ .Values.argoContext.hooks.name }}-sa
   labels:
     {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ .Values.argoContext.postHookJob.name }}-role
+  name: {{ .Values.argoContext.hooks.name }}-role
 rules:
   - apiGroups: [""]
     resources: ["services"]
@@ -76,13 +86,13 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Values.argoContext.postHookJob.name }}-rb
+  name: {{ .Values.argoContext.hooks.name }}-rb
 subjects:
   - kind: ServiceAccount
-    name: {{ .Values.argoContext.postHookJob.name }}-sa
+    name: {{ .Values.argoContext.hooks.name }}-sa
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: {{ .Values.argoContext.postHookJob.name }}-role
+  name: {{ .Values.argoContext.hooks.name }}-role
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
