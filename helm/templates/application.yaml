@@ -1,0 +1,108 @@
+{{ if .Values.argoContext.applications }}
+{{- $nameOverride := .Values.argoContext.nameOverride }}
+{{- $baseUrl :=  .Values.argoContext.repositories.baseUrl }}
+{{- $defaultProject :=  printf "%s-project" .Values.argoContext.projects.default | default "default" }}
+
+{{- range $app, $config := .Values.argoContext.applications }}
+{{- if $config.isApplication }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  {{- if $config.overrideName }}
+  name: {{ $config.overrideName }}
+  {{- else }}
+  name: {{ $app }}-{{ $config.env }}
+  {{- end }}
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+    {{- with .labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- with .annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  source:
+    repoURL: "{{ $baseUrl }}:{{ required "You must give the repository url" $config.source.repo }}.git"
+    targetRevision: {{ $config.source.branch | default "main" }}
+    path: {{ $config.source.chart | default "helm" }}
+    {{- if $config.values }}
+    helm:
+      valueFiles:
+      {{- if $config.values.valueFiles }}
+        {{- with $config.values.valueFiles }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with $config.values.parameters }}
+      parameters:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      # Values file as block file
+      {{- with $config.values.inline }}
+      values: |
+        {{- . | nindent 12 }}
+      {{- end }}
+    {{- else }}
+    helm:
+      valueFiles:
+        - values.{{ $config.env }}.yaml
+    {{- end }}
+  {{- if $config.project }}
+  project: {{ $config.project }}-project
+  {{- else }}
+  project: {{ $defaultProject }}
+  {{- end }}
+  destination:
+    namespace: {{ required "You must define the namespace where you chart will live in" $config.destination.ns }}
+    name: {{ $config.destination.cluster | default "in-cluster" }}
+  {{- with $config.syncPolicy }}
+  syncPolicy:
+    {{- if not .disableAutomated }}
+    automated:
+      prune: {{ .automated.prune | default false }} # specifies if resources should be pruned during auto-syncing ( false by default )
+      selfHeal: {{ .automated.selfHeal | default false }} # specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default )
+      allowEmpty: {{ .automated.allowEmpty | default false }} # allows deleting all application resources during automatic syncing ( false by default )
+    {{- end }}
+    {{- with .syncOptions }}
+    syncOptions: # sync options which modifies sync behavior
+      - Validate={{ .validate | default true }} # disables resource validation (equivalent to 'kubectl apply --validate=false') ( true by default )
+      - CreateNamespace={{ .createNamespace | default false }} # namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster
+      - PrunePropagationPolicy={{ .prunePropagationPolicy | default "foreground" }} # supported policies are background, foreground and orphan
+      - PruneLast={{ .pruneLast | default false }} # allow the ability for resource pruning to happen as a final, implicit wave of a sync operation
+      - RespectIgnoreDifferences={{ .respectIgnoreDifferences | default true }} # This sync option is used to enable ArgoCD to consider the configurations made in the spec.ignoreDifferences
+      - ApplyOutOfSyncOnly={{ .applyOutOfSyncOnly | default false }} # Turning on selective sync option which will sync only out-of-sync resources.
+      - Replace={{ .replace | default false }} # If the Replace=true sync option is set the ArgoCD will use kubectl replace or kubectl create command to apply changes.
+      - FailOnSharedResource={{ .failOnSharedResource | default false }} # If the FailOnSharedResource sync option is set, ArgoCD will fail the sync whenever it finds a resource in the current Application that is already applied in the cluster by another Application.
+    {{- end }}
+    retry:
+    {{- if .retry }}
+      limit: {{ .retry.limit | default 5 }} # number of failed sync attempt retries; unlimited number of attempts if less than 0
+      backoff:
+        duration: {{ .retry.duration | default "5s" }} # the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+        factor: {{ .retry.factor | default 2 }} # a factor to multiply the base duration after each failed retry
+        maxDuration: {{ .retry.maxDuration | default "3m" }} # the maximum amount of time allowed for the backoff strategy
+    {{- else }}
+      limit: 5 # number of failed sync attempt retries; unlimited number of attempts if less than 0
+      backoff:
+        duration: 5s # the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
+        factor: 2 # a factor to multiply the base duration after each failed retry
+        maxDuration: 3m # the maximum amount of time allowed for the backoff strategy
+    {{- end }}
+  {{- end }}
+  ignoreDifferences:
+  {{- if $config.ignoreDifferences }}
+    {{- with $config.ignoreDifferences }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- else }}
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+  {{- end }}
+{{- end}}
+{{- end}}
+{{ end }}

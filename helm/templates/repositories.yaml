@@ -1,0 +1,40 @@
+{{ if .Values.argoContext.repositories }}
+{{- $nameOverride := .Values.argoContext.nameOverride }}
+{{- $baseUrl := .Values.argoContext.repositories.baseUrl }}
+{{- range $repo, $config := .Values.argoContext.repositories.repos }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $nameOverride }}-repo-{{ $repo }}
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+    {{- with .labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: {{ $baseUrl }}:{{ $config.url }}
+  {{- if $config.project }}
+  project: {{ $config.project }}-project
+  {{- end }}
+  name: {{ $repo }}
+{{- end}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $nameOverride }}-repo-creds
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+    {{- with .labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  type: git
+  url: {{ $baseUrl }}
+  sshPrivateKey: |
+    {{- "keys/id_rsa" | .Files.Get | nindent 4 }}
+{{ end }}

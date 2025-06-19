@@ -1,0 +1,26 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server
+  namespace: {{ .Release.Namespace | quote }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # - kind: Rule
+    #   match: Host(`argocd-internal.spirit-dev.net`)
+    #   priority: 10
+    #   services:
+    #     - name: argocd-server
+    #       port: 80
+    - kind: Rule
+      match: Host(`argocd-internal.spirit-dev.net`) && Headers(`Content-Type`, `application/grpc`)
+      priority: 11
+      services:
+        - name: argocd-server
+          port: 80
+          scheme: h2c
+  tls:
+    secretName: argocd-external-private-tls # pragma: allowlist secret
+    domains:
+      - main: argocd-internal.spirit-dev.net
