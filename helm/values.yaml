@@ -1,3 +1,10 @@
+argocdContext:
+  additionalLabels: {}
+  registry:
+    url:
+    username:
+    password:
+
 argo-cd:
   ## Argo CD configuration
   ## Ref: https://github.com/argoproj/argo-cd
