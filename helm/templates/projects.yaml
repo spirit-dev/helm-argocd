@@ -1,0 +1,61 @@
+{{ if .Values.argoContext.projects }}
+{{- range $proj, $config := .Values.argoContext.projects.projects }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: {{ $proj }}-project
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+    {{- with .labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  # Finalizer that ensures that project is not deleted until it is not referenced by any application
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Argo CD groupment for {{ $proj | upper }} applications
+  sourceRepos:
+    - "*"
+  destinations:
+    - name: {{ $config.destination.name }}
+      namespace: '*'
+      server: {{ $config.destination.server }}
+  {{- if $config.clusterResourceWhitelist }}
+  clusterResourceWhitelist:
+    {{- with $config.clusterResourceWhitelist }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- if $config.clusterResourceBlacklist }}
+  clusterResourceBlacklist:
+    {{- with $config.clusterResourceBlacklist }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- if $config.namespaceResourceBlacklist }}
+  namespaceResourceBlacklist:
+    {{- with $config.namespaceResourceBlacklist }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- if $config.namespaceResourceWhitelist }}
+  namespaceResourceWhitelist:
+    {{- with $config.namespaceResourceWhitelist }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  roles:
+    - name: read-only
+      description: Read-only privileges to {{ $proj }}
+      policies:
+        - p, proj:{{ $proj }}:read-only, applications, get, {{ $proj }}/*, allow
+      # groups:
+      # - qa-oidc-group
+  {{- if $config.roles }}
+    {{- with $config.roles }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{ end }}

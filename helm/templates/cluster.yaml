@@ -1,0 +1,33 @@
+
+{{- $nameOverride := .Values.argoContext.nameOverride }}
+{{- range $cluster, $config := .Values.argoContext.clusterCredentials }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $nameOverride }}-cluster-{{ $cluster | replace "_" "-" }}
+  labels:
+    {{- include "argoContext.labels" (dict "context" $) | nindent 4 }}
+    {{- with .labels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+    argocd.argoproj.io/secret-type: cluster
+  {{- with .annotations }}
+  annotations:
+    {{- range $key, $value := . }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  {{- end }}
+type: Opaque
+stringData:
+  name: {{ required "A valid .Values.argoContext.clusterCredentials{}.name entry is required!" $config.name }}
+  server: {{ required "A valid .Values.argoContext.clusterCredentials{}.server entry is required!" $config.server }}
+  {{- if $config.namespaces }}
+  namespaces: {{ $config.namespaces }}
+    {{- if $config.clusterResources }}
+  clusterResources: {{ $config.clusterResources | quote }}
+    {{- end }}
+  {{- end }}
+  config: |
+    {{- required "A valid .Values.argoContext.clusterCredentials{}.config entry is required!" $config.config | toPrettyJson | nindent 4 }}
+{{- end }}
