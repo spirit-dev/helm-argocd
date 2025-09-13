@@ -1464,7 +1464,7 @@ argo-cd:
       repository: ecr-public.aws.com/docker/library/redis
       # -- Redis tag
       ## Do not upgrade to >= 7.4.0, otherwise you are no longer using an open source version of Redis
-      tag: 7.2.8-alpine
+      tag: 7.4.5-alpine
       # -- Redis image pull policy
       # @default -- `""` (defaults to global.image.imagePullPolicy)
       imagePullPolicy: ""
@@ -1480,7 +1480,7 @@ argo-cd:
         # -- Repository to use for the redis-exporter
         repository: ghcr.io/oliver006/redis_exporter
         # -- Tag to use for the redis-exporter
-        tag: v1.76.0
+        tag: v1.77.0
         # -- Image pull policy for the redis-exporter
         # @default -- `""` (defaults to global.image.imagePullPolicy)
         imagePullPolicy: ""
@@ -1763,7 +1763,7 @@ argo-cd:
       repository: ecr-public.aws.com/docker/library/redis
       # -- Redis tag
       ## Do not upgrade to >= 7.4.0, otherwise you are no longer using an open source version of Redis
-      tag: 7.2.8-alpine
+      tag: 7.4.5-alpine
     ## Prometheus redis-exporter sidecar
     exporter:
       # -- Enable Prometheus redis-exporter sidecar
