@@ -9,7 +9,7 @@ sources:
 dependencies:
   - name: argo-cd
     repository: https://argoproj.github.io/argo-helm
-    version: 8.5.0
+    version: 8.5.2
 
 # A chart can be either an 'application' or a 'library' chart.
 #
