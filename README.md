@@ -1,8 +1,6 @@
 # argocd
 
-[![GitLab Sync](https://img.shields.io/badge/gitlab_sync-argocd-blue?style=for-the-badge&logo=gitlab)](https://gitlab-internal.spirit-dev.net/github-mirror/helm-argocd) <!-- markdownlint-disable MD041 -->
-[![GitHub Mirror](https://img.shields.io/badge/github_mirror-argocd-blue?style=for-the-badge&logo=github)](https://github.com/spirit-dev/helm-argocd)
-[![App Status](https://argocd-internal.spirit-dev.net/api/badge?name=argocd&revision=true&showAppName=true)](https://argocd-internal.spirit-dev.net/applications/argocd)
+
 
 <!--TOC-->
 
@@ -20,4 +18,4 @@ The installation should be done in two steps:
 ```shell
 #> make dry-run ENV=<ENV>
 #> make install ENV=<ENV>
-```
+``
